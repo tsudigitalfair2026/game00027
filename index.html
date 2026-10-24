@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>❄️ペンギンもぐらたたき❄️</title>
+
+<style>
+*{
+    box-sizing:border-box;
+    -webkit-tap-highlight-color:transparent;
+}
+
+html,body{
+    margin:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    touch-action:none;
+    font-family:sans-serif;
+    user-select:none;
+
+    background:
+    radial-gradient(circle at 20% 20%,rgba(255,255,255,.8) 0 4px,transparent 5px),
+    radial-gradient(circle at 80% 30%,rgba(255,255,255,.7) 0 3px,transparent 4px),
+    radial-gradient(circle at 40% 70%,rgba(255,255,255,.7) 0 5px,transparent 6px),
+    linear-gradient(to bottom,#9be8ff 0%,#7fd7ff 35%,#d8f7ff 100%);
+}
+
+.screen{
+    width:100%;
+    height:100%;
+    display:none;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    padding:16px;
+    text-align:center;
+}
+
+.screen.active{
+    display:flex;
+}
+
+h1{
+    margin:10px 0;
+    color:#003d66;
+    text-shadow:0 0 10px rgba(255,255,255,.8);
+}
+
+p{
+    line-height:1.7;
+}
+
+button{
+    min-width:220px;
+    min-height:60px;
+    border:none;
+    border-radius:18px;
+    font-size:22px;
+    font-weight:bold;
+    cursor:pointer;
+    background:linear-gradient(#fff,#dff7ff);
+    color:#003d66;
+    box-shadow:0 4px 12px rgba(0,0,0,.2);
+}
+
+button:active{
+    transform:scale(.96);
+}
+
+.info{
+    max-width:520px;
+    background:rgba(255,255,255,.75);
+    backdrop-filter:blur(4px);
+    border:2px solid rgba(255,255,255,.8);
+    border-radius:18px;
+    padding:14px;
+}
+
+#gameScreen{
+    justify-content:flex-start;
+}
+
+.topbar{
+    width:100%;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    color:#003d66;
+    font-size:22px;
+    font-weight:bold;
+    padding:10px;
+}
+
+#comboBox{
+    font-size:24px;
+    font-weight:bold;
+    color:#0055aa;
+    min-height:35px;
+}
+
+#gameArea{
+    width:min(95vw,520px);
+    aspect-ratio:1/1;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    grid-template-rows:repeat(3,1fr);
+    gap:10px;
+    margin-top:10px;
+}
+
+.hole{
+    position:relative;
+    overflow:hidden;
+    border-radius:50%;
+    background:
+    radial-gradient(circle at 50% 35%,#f7ffff 0%,#dff8ff 45%,#b8e9ff 100%);
+    border:3px solid #ffffff;
+    box-shadow:
+    inset 0 6px 10px rgba(255,255,255,.9),
+    0 4px 8px rgba(0,0,0,.15);
+}
+
+.penguin{
+    position:absolute;
+    left:50%;
+    bottom:-100%;
+    transform:translateX(-50%);
+    font-size:clamp(42px,8vw,60px);
+    transition:bottom .18s;
+}
+
+.hole.show .penguin{
+    bottom:10%;
+}
+
+.comboEffect{
+    animation:comboPop .45s;
+}
+
+@keyframes comboPop{
+    0%{transform:scale(.8);}
+    50%{transform:scale(1.25);}
+    100%{transform:scale(1);}
+}
+
+#finalScore{
+    font-size:40px;
+    color:#003d66;
+    font-weight:bold;
+    margin:12px 0;
+}
+
+#rank{
+    font-size:30px;
+    font-weight:bold;
+    color:#0066cc;
+    margin-bottom:20px;
+}
+
+.snow{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    overflow:hidden;
+}
+
+.flake{
+    position:absolute;
+    color:white;
+    opacity:.8;
+    animation:snowfall linear infinite;
+}
+
+@keyframes snowfall{
+    from{
+        transform:translateY(-10vh);
+    }
+    to{
+        transform:translateY(110vh);
+    }
+}
+</style>
+</head>
+<body>
+
+<div class="snow" id="snow"></div>
+
+<div id="startScreen" class="screen active">
+    <h1>❄️🐧 ペンギンもぐらたたき 🐧❄️</h1>
+
+    <div class="info">
+        <p>
+            氷の世界でペンギンをタップしよう！<br>
+            5回連続成功でコンボボーナス！<br>
+            ミスするとコンボが0になるよ！<br>
+            60秒でハイスコアを目指そう！
+        </p>
+    </div>
+
+    <br>
+
+    <button id="startBtn">ゲームスタート</button>
+</div>
+
+<div id="gameScreen" class="screen">
+
+    <div class="topbar">
+        <div>🎯 <span id="score">0</span></div>
+        <div>⏰ <span id="time">60</span>秒</div>
+    </div>
+
+    <div id="comboBox">コンボ: 0</div>
+
+    <div id="gameArea"></div>
+
+</div>
+
+<div id="resultScreen" class="screen">
+
+    <h1>🏆 結果発表 🏆</h1>
+
+    <div id="finalScore">0点</div>
+
+    <div id="rank">ランクC</div>
+
+    <button id="restartBtn">もう一度遊ぶ</button>
+
+</div>
+
+<script>
+const startScreen=document.getElementById("startScreen");
+const gameScreen=document.getElementById("gameScreen");
+const resultScreen=document.getElementById("resultScreen");
+
+const scoreEl=document.getElementById("score");
+const timeEl=document.getElementById("time");
+const comboBox=document.getElementById("comboBox");
+const finalScoreEl=document.getElementById("finalScore");
+const rankEl=document.getElementById("rank");
+const gameArea=document.getElementById("gameArea");
+
+let score=0;
+let combo=0;
+let timeLeft=60;
+let gameRunning=false;
+let currentHole=null;
+let gameTimer=null;
+let penguinTimer=null;
+
+for(let i=0;i<9;i++){
+
+    const hole=document.createElement("div");
+    hole.className="hole";
+
+    const penguin=document.createElement("div");
+    penguin.className="penguin";
+    penguin.textContent="🐧";
+
+    hole.appendChild(penguin);
+
+    hole.addEventListener("pointerdown",(e)=>{
+
+        e.preventDefault();
+
+        if(!gameRunning) return;
+        if(!hole.classList.contains("show")) return;
+
+        combo++;
+
+        let addScore=1;
+
+        if(combo%5===0){
+
+            addScore+=5;
+
+            comboBox.textContent=
+            "🔥 "+combo+"コンボ！ ボーナス+5点！";
+
+            comboBox.classList.remove("comboEffect");
+            void comboBox.offsetWidth;
+            comboBox.classList.add("comboEffect");
+
+        }else{
+            comboBox.textContent="コンボ: "+combo;
+        }
+
+        score+=addScore;
+        scoreEl.textContent=score;
+
+        hole.classList.remove("show");
+        currentHole=null;
+    });
+
+    gameArea.appendChild(hole);
+}
+
+const holes=document.querySelectorAll(".hole");
+
+function randomHole(){
+
+    let hole;
+
+    do{
+        hole=holes[Math.floor(Math.random()*holes.length)];
+    }
+    while(hole===currentHole);
+
+    currentHole=hole;
+    return hole;
+}
+
+function showPenguin(){
+
+    holes.forEach(h=>{
+
+        if(h.classList.contains("show")){
+            combo=0;
+            comboBox.textContent="コンボ: 0";
+        }
+
+        h.classList.remove("show");
+    });
+
+    const hole=randomHole();
+
+    hole.classList.add("show");
+
+    const visibleTime=550+Math.random()*350;
+
+    setTimeout(()=>{
+
+        if(hole.classList.contains("show")){
+
+            hole.classList.remove("show");
+
+            combo=0;
+            comboBox.textContent="コンボ: 0";
+        }
+
+    },visibleTime);
+}
+
+function startGame(){
+
+    score=0;
+    combo=0;
+    timeLeft=60;
+    gameRunning=true;
+
+    scoreEl.textContent="0";
+    timeEl.textContent="60";
+    comboBox.textContent="コンボ: 0";
+
+    startScreen.classList.remove("active");
+    resultScreen.classList.remove("active");
+    gameScreen.classList.add("active");
+
+    showPenguin();
+
+    penguinTimer=setInterval(()=>{
+        showPenguin();
+    },800);
+
+    gameTimer=setInterval(()=>{
+
+        timeLeft--;
+
+        timeEl.textContent=timeLeft;
+
+        if(timeLeft<=0){
+            endGame();
+        }
+
+    },1000);
+}
+
+function endGame(){
+
+    gameRunning=false;
+
+    clearInterval(gameTimer);
+    clearInterval(penguinTimer);
+
+    holes.forEach(h=>h.classList.remove("show"));
+
+    gameScreen.classList.remove("active");
+    resultScreen.classList.add("active");
+
+    finalScoreEl.textContent=score+"点";
+
+    let rank="C";
+
+    if(score>=90){
+        rank="S";
+    }else if(score>=65){
+        rank="A";
+    }else if(score>=40){
+        rank="B";
+    }
+
+    rankEl.textContent="ランク "+rank;
+}
+
+document.getElementById("startBtn")
+.addEventListener("click",startGame);
+
+document.getElementById("restartBtn")
+.addEventListener("click",startGame);
+
+document.addEventListener("gesturestart",e=>e.preventDefault());
+document.addEventListener("dblclick",e=>e.preventDefault());
+
+const snow=document.getElementById("snow");
+
+for(let i=0;i<40;i++){
+
+    const flake=document.createElement("div");
+
+    flake.className="flake";
+    flake.textContent="❄";
+
+    flake.style.left=Math.random()*100+"%";
+    flake.style.fontSize=(10+Math.random()*18)+"px";
+    flake.style.animationDuration=(5+Math.random()*8)+"s";
+    flake.style.animationDelay=(-Math.random()*10)+"s";
+
+    snow.appendChild(flake);
+}
+</script>
+
+</body>
+</html>
